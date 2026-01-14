@@ -17,12 +17,12 @@ int main(int argc, char **argv) {
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
     char *word = NULL;
-    int N = 0;              // μήκος λέξης (χωρίς '\0')
-    int buf_len = 0;        // N+1 για το '\0'
+    int N = 0;              
+    int buf_len = 0;        
 
     if (rank == 0) {
-        // Διαβάζουμε μία λέξη (χωρίς κενά). Για ασφάλεια, χρησιμοποιούμε fgets.
-        char tmp[100000]; // μεγάλο buffer για "οποιοδήποτε" N σε πρακτικά πλαίσια
+        
+        char tmp[100000]; 
         printf("Δώσε μία λέξη: ");
         fflush(stdout);
 
@@ -43,11 +43,11 @@ int main(int argc, char **argv) {
         memcpy(word, tmp, (size_t)buf_len);
     }
 
-    // Broadcast το μήκος
+    
     MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
     buf_len = N + 1;
 
-    // Όλοι δεσμεύουν μνήμη και παίρνουν τη λέξη
+    
     if (rank != 0) {
         word = (char *)malloc((size_t)buf_len);
         if (!word) {
@@ -57,11 +57,11 @@ int main(int argc, char **argv) {
     }
     MPI_Bcast(word, buf_len, MPI_CHAR, 0, MPI_COMM_WORLD);
 
-    // Παράλληλος έλεγχος παλινδρόμου:
-    // Ελέγχουμε ζεύγη (i, N-1-i) μόνο για i = 0..(N/2 - 1)
+    
+    
     int total_pairs = N / 2;
 
-    // Μοιράζουμε τα i σε blocks με integer partitioning
+    
     int start = (rank * total_pairs) / size;
     int end   = ((rank + 1) * total_pairs) / size;
 
@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
     }
 
     int global_ok = 0;
-    // AND όλων των local_ok
+    
     MPI_Reduce(&local_ok, &global_ok, 1, MPI_INT, MPI_LAND, 0, MPI_COMM_WORLD);
 
     if (rank == 0) {
