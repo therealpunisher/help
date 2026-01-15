@@ -1,56 +1,39 @@
 #!/usr/bin/env bash
 
-
-
-
 set -u
 
 TARGET_UID=1008
 
 total_procs=0
-ls1_procs=0
-ls1_rss_kb=0
+user_procs=0
+total_kb=0
 
+for dir in /proc/[0-9]*; do
+    pid=${dir##*/}
 
-for d in /proc/[0-9]*; do
-  
-  [[ -d "$d" ]] || continue
+    status_file="$dir/status"
 
-  pid=${d##*/}
-  status="$d/status"
-
-  
-  ((total_procs++))
-
-  
-  [[ -r "$status" ]] || continue
-
-  
-  
-  read -r uid rss_kb < <(
-    awk '
-      $1=="Uid:"   {uid=$2}
-      $1=="VmRSS:" {rss=$2}
-      END { if (uid=="") uid=-1; if (rss=="") rss=0; print uid, rss }
-    ' "$status" 2>/dev/null
-  ) || continue
-
-  
-  [[ "$uid" =~ ^[0-9]+$ ]] || continue
-
-  if (( uid == TARGET_UID )); then
-    ((ls1_procs++))
     
-    if [[ "$rss_kb" =~ ^[0-9]+$ ]]; then
-      ((ls1_rss_kb += rss_kb))
-    fi
-  fi
+    [[ -r "$status_file" ]] || continue
 
+    total_procs=$((total_procs + 1))
+
+    
+    uid=$(grep "^Uid:" "$status_file" 2>/dev/null | awk '{print $2}')
+
+    if [[ "$uid" == "$TARGET_UID" ]]; then
+        user_procs=$((user_procs + 1))
+
+        
+        rss_kb=$(grep "^VmRSS:" "$status_file" 2>/dev/null | awk '{print $2}')
+        rss_kb=${rss_kb:-0}
+
+        total_kb=$((total_kb + rss_kb))
+    fi
 done
 
+total_mb=$((total_kb / 1024))
 
-ls1_rss_mb=$(awk -v kb="$ls1_rss_kb" 'BEGIN{printf "%.2f", kb/1024.0}')
-
-printf "Σύνολο διεργασιών: %d\n" "$total_procs"
-printf "Διεργασίες του χρήστη ls1 (UID %d): %d\n" "$TARGET_UID" "$ls1_procs"
-printf "Συνολική μνήμη διεργασιών ls1 (VmRSS): %s MB\n" "$ls1_rss_mb"
+echo "Συνολικό πλήθος διεργασιών: $total_procs"
+echo "Διεργασίες του user ls1 (UID 1008): $user_procs"
+echo "Συνολική μνήμη (VmRSS) του ls1: ${total_mb} MB"
